@@ -318,15 +318,22 @@ export function normalize(raw: unknown): BoardState {
     .map((x) => {
       const r = (x ?? {}) as Partial<Week> & LegacyWeek;
       const items: WeekItem[] = arr(r.items, 200).map((y) => {
-        const it = (y ?? {}) as Partial<WeekItem>;
+        const it = (y ?? {}) as Partial<WeekItem> & { ask?: unknown };
         const by = str(it.by, 64);
+        /*
+         * `ask` 가 없던 때(2026-09-10 낮)에는 **작성자가 비어 있는 것**이 컨펌 요청이었다.
+         * 그 표시를 `ask` 로 옮긴다 — 이제 컨펌 요청도 적은 사람이 있다.
+         */
+        const ask = it.ask === undefined ? !memberIds.has(by) : it.ask === true;
         return {
           id: fixItem(it.id),
-          // 지금 없는 팀원의 글은 컨펌 요청 줄로 내려온다 — 화면에 안 뜨는 글을 만들지 않는다.
+          // 지금 없는 팀원의 글은 작성자 없이 남는다 — 화면에는 뜨고, 팀장만 고칠 수 있다.
           by: memberIds.has(by) ? by : "",
+          ask,
           text: str(it.text, 2000),
-          done: it.done === true,
-          doneAt: it.done === true ? date(it.doneAt) : "",
+          // 완료 표시는 컨펌 요청에만 있다. 진행 내용에 남아 있던 것은 여기서 떨어진다.
+          done: ask && it.done === true,
+          doneAt: ask && it.done === true ? date(it.doneAt) : "",
         };
       });
 
@@ -338,10 +345,10 @@ export function normalize(raw: unknown): BoardState {
         const legacy = (r.notes ?? {}) as Record<string, unknown>;
         for (const id of memberIds) {
           const t = str(legacy[id], 2000);
-          if (t) items.push({ id: fixItem(""), by: id, text: t, done: false, doneAt: "" });
+          if (t) items.push({ id: fixItem(""), by: id, ask: false, text: t, done: false, doneAt: "" });
         }
         const shared = str(r.note, 2000);
-        if (shared) items.push({ id: fixItem(""), by: "", text: shared, done: false, doneAt: "" });
+        if (shared) items.push({ id: fixItem(""), by: "", ask: true, text: shared, done: false, doneAt: "" });
       }
 
       return { id: date(r.id), items };

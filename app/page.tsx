@@ -1,5 +1,6 @@
 import Board from "@/components/Board";
 import { EMPTY_FEED, type Feed, feedLinked, readFeed } from "@/lib/feed";
+import { keyRequired } from "@/lib/auth";
 import { readBoard, storeKind, StoreConfigError } from "@/lib/store";
 import { type BoardState, monthKey } from "@/lib/types";
 import { BUILD_SHA } from "./layout";
@@ -36,7 +37,7 @@ export default async function Page() {
       initialFeed={feed}
       feedMonth={first}
       feedLinked={feedLinked()}
-      keyRequired={Boolean(process.env.BOARD_WRITE_KEY)}
+      keyRequired={keyRequired()}
       ephemeralStore={storeKind() === "file"}
       build={BUILD_SHA}
     />

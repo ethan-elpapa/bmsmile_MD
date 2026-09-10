@@ -1,20 +1,12 @@
 import { NextResponse } from "next/server";
+import { keyRequired, mayApply, whoIs } from "@/lib/auth";
 import { normalize } from "@/lib/seed";
 import { readBoard, StoreConfigError, writeBoard } from "@/lib/store";
 import type { BoardState } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-/** 편집 키를 안 걸어 두면 링크를 아는 사람 누구나 고칠 수 있다. 화면에서 그렇게 알린다. */
-export function writeKeyRequired() {
-  return Boolean(process.env.BOARD_WRITE_KEY);
-}
-
-function authorized(req: Request) {
-  const want = process.env.BOARD_WRITE_KEY;
-  if (!want) return true;
-  return req.headers.get("x-board-key") === want;
-}
+const keyOf = (req: Request) => req.headers.get("x-board-key");
 
 function fail(e: unknown) {
   const status = e instanceof StoreConfigError ? 503 : 500;
@@ -22,17 +14,29 @@ function fail(e: unknown) {
   return NextResponse.json({ error: message }, { status });
 }
 
-export async function GET() {
+/**
+ * 읽기는 누구나 된다. 키를 같이 보내면 **그 키가 누구인지**도 알려 준다 —
+ * 화면이 "내 칸만 열어 주는" 일을 하려면 자기가 누군지 알아야 한다.
+ */
+export async function GET(req: Request) {
   try {
     const state = await readBoard();
-    return NextResponse.json({ state, keyRequired: writeKeyRequired() });
+    const who = whoIs(keyOf(req));
+    return NextResponse.json({
+      state,
+      keyRequired: keyRequired(),
+      // 키가 틀렸으면 아무것도 아닌 사람이다(읽기는 그래도 된다).
+      me: who?.kind === "member" ? who.id : null,
+      lead: who?.kind === "lead" || who?.kind === "open",
+    });
   } catch (e) {
     return fail(e);
   }
 }
 
 export async function PUT(req: Request) {
-  if (!authorized(req)) {
+  const who = whoIs(keyOf(req));
+  if (!who) {
     return NextResponse.json({ error: "편집 키가 맞지 않습니다." }, { status: 401 });
   }
 
@@ -57,8 +61,18 @@ export async function PUT(req: Request) {
       );
     }
 
+    /*
+     * **정규화를 먼저 하고 나서 권한을 본다.** 보내온 값을 그대로 견주면
+     * 모양만 다른(숫자가 문자열로 온 것 같은) 요청이 권한 위반으로 잡힌다.
+     */
+    const clean = normalize(body.state);
+    const verdict = mayApply(current, clean, who);
+    if (!verdict.ok) {
+      return NextResponse.json({ error: verdict.why }, { status: 403 });
+    }
+
     const next: BoardState = {
-      ...normalize(body.state),
+      ...clean,
       rev: current.rev + 1,
       updated: new Date().toISOString(),
     };
