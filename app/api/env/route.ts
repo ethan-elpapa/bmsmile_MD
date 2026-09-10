@@ -14,7 +14,25 @@ export const dynamic = "force-dynamic";
  */
 const WATCH = /^(BOARD_|SHEET_|FEED_|KV_|UPSTASH_|STORAGE_|REDIS_)/;
 
-export async function GET() {
+/**
+ * 편집 키를 걸어 두면 이 창구도 그 키가 있어야 열린다 — 보드를 고칠 수 있는 사람이면
+ * 설정도 볼 수 있다는 규칙이다. 키를 안 걸어 둔 보드라면 감출 것도 없어서 그냥 열어 둔다.
+ * (`BOARD_WRITE_KEY` 가 비어 있으면 어차피 누구나 보드를 고칠 수 있다.)
+ */
+function authorized(req: Request) {
+  const want = process.env.BOARD_WRITE_KEY;
+  if (!want) return true;
+  return req.headers.get("x-board-key") === want;
+}
+
+export async function GET(req: Request) {
+  if (!authorized(req)) {
+    return NextResponse.json(
+      { error: "편집 키가 필요합니다. x-board-key 헤더로 보내세요." },
+      { status: 401, headers: { "cache-control": "no-store" } },
+    );
+  }
+
   const names = Object.keys(process.env).filter((k) => WATCH.test(k)).sort();
   const seen: Record<string, string> = {};
   for (const k of names) {
