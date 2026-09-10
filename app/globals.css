@@ -362,7 +362,7 @@ textarea.field{resize:none; overflow:hidden}
 .plist{padding:2px 0}
 .prow{
   display:grid; align-items:center; gap:10px;
-  grid-template-columns:76px minmax(200px,1fr) 124px 116px 122px 134px 24px;
+  grid-template-columns:76px minmax(200px,1fr) 124px 122px 134px 24px;
   padding:9px 12px; border-bottom:1px solid var(--line-soft);
 }
 .prow:last-child{border-bottom:none}
@@ -629,8 +629,7 @@ footer code{font-family:var(--mono); font-size:11px; color:var(--muted)}
   .prow{grid-template-columns:76px 1fr 24px; row-gap:8px}
   .prow .pmain{grid-column:1 / -1; grid-row:2}
   .prow .bchips{grid-column:1 / -1; grid-row:3}
-  .prow .sel{grid-column:1 / 2; grid-row:4}
-  .prow .dt{grid-column:2 / 3; grid-row:4}
+  .prow .dt{grid-column:1 / 3; grid-row:4}
   .prow .pprog{grid-column:1 / -1; grid-row:5}
   /* 주간 줄도 같은 방식으로 접는다: 날짜·건수 한 줄, 비고 한 줄, 확인 한 줄. */
   /* 주간 머리줄도 접는다: 날짜 한 칸, 나머지는 아래로. */

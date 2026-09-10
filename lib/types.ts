@@ -159,13 +159,16 @@ export type Member = {
   focus: string;
 };
 
-/** 프로젝트성 목표. 진행률은 연결된 업무에서 계산하고, 상태는 사람이 직접 돌린다. */
+/**
+ * 프로젝트성 목표. 진행률은 연결된 업무에서 계산하고, 상태는 사람이 직접 돌린다.
+ *
+ * **담당자 칸이 없다.** 한 프로젝트를 여러 명이 맡기 때문에 한 명만 적는 칸은 맞지 않는다 —
+ * 누가 붙어 있는지는 그 프로젝트에 걸린 **업무의 담당자**에서 나온다.
+ */
 export type Project = {
   id: string;
   name: string;
   goal: string;
-  /** Member.id. 빈 문자열이면 담당 미정. */
-  owner: string;
   due: string;
   status: Status;
   /** BRANDS 의 id 들. 업무와 같은 규칙 — 없을 수도, 여러 개일 수도 있다. */

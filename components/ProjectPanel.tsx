@@ -1,7 +1,7 @@
 "use client";
 
 import { TextField } from "./fields";
-import { BRANDS, type Member, type Project, STATUS_LABEL, type Task, toggleBrand } from "@/lib/types";
+import { BRANDS, type Project, STATUS_LABEL, type Task, toggleBrand } from "@/lib/types";
 import { isLate, tally } from "@/lib/util";
 
 /** 브랜드 필터의 특별한 두 값. 실제 브랜드 id 와 겹치지 않게 앞에 @ 를 붙였다. */
@@ -15,7 +15,6 @@ export const NO_BRAND = "@none";
  */
 export default function ProjectPanel({
   projects,
-  members,
   tasks,
   today,
   readOnly,
@@ -29,7 +28,6 @@ export default function ProjectPanel({
   onRemove,
 }: {
   projects: Project[];
-  members: Member[];
   tasks: Task[];
   today: string;
   readOnly: boolean;
@@ -145,21 +143,6 @@ export default function ProjectPanel({
                     );
                   })}
                 </div>
-
-                <select
-                  className="sel"
-                  value={p.owner}
-                  disabled={readOnly}
-                  onChange={(e) => onPatch(p.id, { owner: e.currentTarget.value })}
-                  aria-label={`${p.name} 담당자`}
-                >
-                  <option value="">담당 미정</option>
-                  {members.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                    </option>
-                  ))}
-                </select>
 
                 <input
                   type="date"

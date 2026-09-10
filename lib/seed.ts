@@ -275,13 +275,11 @@ export function normalize(raw: unknown): BoardState {
   const fixProject = idFixer();
   const projects: Project[] = arr(s.projects, 100).map((x) => {
     const r = (x ?? {}) as Partial<Project>;
-    const owner = str(r.owner, 64);
     return {
       id: fixProject(r.id),
       name: str(r.name, 80) || "이름 없는 프로젝트",
       goal: str(r.goal, 300),
       // 팀원이 지워졌으면 담당 미정으로 돌린다. 없는 사람을 가리키면 화면에서 빈칸이 된다.
-      owner: memberIds.has(owner) ? owner : "",
       due: date(r.due),
       status: status(r.status),
       brands: brands(r.brands),

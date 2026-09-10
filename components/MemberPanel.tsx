@@ -64,6 +64,8 @@ export default function MemberPanel({
           const now = sortTasks(c.mine.filter((x) => x.status === 1));
           const next = sortTasks(c.mine.filter((x) => x.status === 0));
           const show = now.length ? now : next;
+          // 이 사람 업무가 걸려 있는, 아직 안 끝난 프로젝트. 한 번만 세어서 아래에서 쓴다.
+          const onProjects = c.id === NOBODY ? [] : projectsOf(c.id, projects, tasks);
           const picked = filter === c.id;
 
           return (
@@ -104,9 +106,7 @@ export default function MemberPanel({
                 </span>
                 <span className="whocount">
                   {t.done}/{t.total}
-                  {c.id !== NOBODY && projectsOf(c.id, projects).length
-                    ? ` · 프로젝트 ${projectsOf(c.id, projects).length}`
-                    : ""}
+                  {onProjects.length ? ` · 프로젝트 ${onProjects.length}` : ""}
                 </span>
               </span>
             </button>
@@ -117,7 +117,12 @@ export default function MemberPanel({
   );
 }
 
-/** 그 사람이 맡고 있는 프로젝트. 끝난 것은 빼고 센다 — 지금 지고 있는 짐만 보여야 한다. */
-function projectsOf(memberId: string, projects: Project[]) {
-  return projects.filter((p) => p.owner === memberId && p.status !== 2);
+/**
+ * 그 사람이 붙어 있는 프로젝트. **업무에서 나온다** — 프로젝트에는 담당자 칸이 없다
+ * (한 프로젝트를 여러 명이 맡기 때문에). 그 프로젝트에 걸린 업무를 맡았으면 붙어 있는 것이다.
+ * 끝난 프로젝트는 빼고 센다 — 지금 지고 있는 짐만 보여야 한다.
+ */
+function projectsOf(memberId: string, projects: Project[], tasks: Task[]) {
+  const on = new Set(tasks.filter((t) => t.assignee === memberId && t.project).map((t) => t.project));
+  return projects.filter((p) => on.has(p.id) && p.status !== 2);
 }

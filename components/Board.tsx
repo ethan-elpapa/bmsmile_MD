@@ -365,7 +365,6 @@ export default function Board({
             id: newId(),
             name: "새 프로젝트",
             goal: "",
-            owner: "",
             due: "",
             status: 0 as Status,
             brands:
@@ -575,7 +574,6 @@ export default function Board({
 
       <ProjectPanel
         projects={state.projects}
-        members={state.members}
         tasks={state.tasks}
         today={today}
         readOnly={readOnly}
