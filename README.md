@@ -91,6 +91,26 @@
 
 다른 사람이 바꾼 건 **20초마다** 가져온다. 내 쪽에 저장 안 된 변경이 있으면 건드리지 않는다.
 
+## 배포된 곳
+
+| | |
+|---|---|
+| 보드 | https://bmsmile-md.vercel.app |
+| 저장소 | https://github.com/ethan-elpapa/bmsmile_MD (main 에 push 하면 자동 배포) |
+| Redis | Upstash `upstash-kv-blue-river` — 확장 진행판과 같은 인스턴스, 키는 `kpi-board` |
+
+**환경변수가 안 먹는 것 같으면 `/api/env` 를 보라.** 이름과 값의 길이만 알려 준다(값은 안 알려 준다).
+편집 키가 걸려 있으면 그 키가 있어야 열린다:
+
+```bash
+curl -H "x-board-key: <편집 키>" https://bmsmile-md.vercel.app/api/env
+```
+
+실제로 겪은 일: Vercel 대시보드에서 변수를 **이름만 만들고 값을 비워** 두면 화면은 "저장소가 아직
+연결되지 않았습니다" 만 보여 준다. 그리고 `Secret` 타입으로 저장하면 대시보드에서도 값을 다시
+볼 수 없어서 무엇이 잘못됐는지 확인할 방법이 없다 — **시트 ID·편집 키는 `Config` 로 넣는 게 낫다.**
+값을 고친 뒤에는 반드시 **Redeploy** 해야 런타임에 들어간다. 전파에 십여 초 걸린다.
+
 ## 최초 설정
 
 ### 1. Vercel 프로젝트 만들기
