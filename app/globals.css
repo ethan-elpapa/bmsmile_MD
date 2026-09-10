@@ -522,27 +522,6 @@ textarea.field{resize:none; overflow:hidden}
 .wadd:hover{border-style:solid; border-color:var(--accent); color:var(--accent)}
 .wadd:focus-visible{opacity:1; outline:2px solid var(--accent); outline-offset:1px}
 .wadd:disabled{opacity:.25; cursor:not-allowed}
-/* 내 줄. 어디를 적어야 하는지가 먼저 보이게 이름에 색을 준다. */
-.wgroup.mine > .wname{color:var(--accent); font-weight:700}
-.wgroup.mine > .wname::after{content:" (나)"; font-size:10px; font-weight:500; opacity:.75}
-/* 남이 적은 줄은 잠긴다. 서버가 막지만, 눌러 보고 거절당하는 것보다 안 눌리는 게 낫다. */
-.witem.locked .field.note{cursor:default; color:var(--ink-2)}
-.witem.locked .field.note:hover{background:transparent}
-.witem.locked .x{opacity:.25; cursor:not-allowed}
-/* 컨펌 요청 항목은 누가 적었는지 이름을 앞에 붙인다 — 팀장이 누구에게 답할지 알아야 한다. */
-.wtextcell{display:flex; align-items:baseline; gap:6px; min-width:0}
-.wtextcell .field.note{flex:1 1 auto; min-width:0}
-.wby{
-  flex:0 0 auto; font-style:normal; font-size:10.5px; font-weight:600; white-space:nowrap;
-  padding:1px 6px; border-radius:99px; background:var(--surface-2); color:var(--muted);
-}
-/* 제목 옆 안내. 내 키로 들어왔을 때만 뜬다. */
-.wmine{
-  flex:0 0 auto; padding:2px 9px; border-radius:99px;
-  border:1px solid var(--line); background:var(--surface); color:var(--muted);
-  font-size:11.5px;
-}
-
 /* 컨펌 요청은 사람 줄과 섞이면 안 된다. 위에 선을 긋고, 비어 있을 땐 물러나 있는다. */
 .wgroup.ask{margin-top:5px; padding-top:6px; border-top:1px dashed var(--line-soft)}
 .wgroup.ask .wname{color:var(--go); font-weight:700}

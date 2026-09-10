@@ -5,8 +5,7 @@
   "scripts": {
     "dev": "next dev --port 3211",
     "build": "next build",
-    "start": "next start",
-    "test": "node --test lib/*.test.mjs"
+    "start": "next start"
   },
   "dependencies": {
     "next": "16.3.4",

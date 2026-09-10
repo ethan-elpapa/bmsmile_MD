@@ -4,6 +4,7 @@ import { useState } from "react";
 import { NoteField } from "./fields";
 import { ALL, NOBODY } from "./TeamPanel";
 import {
+  ASK,
   type Member,
   type Task,
   type Week,
@@ -18,13 +19,15 @@ import { isLate, shortDate, sortTasks, tally } from "@/lib/util";
  * 주간 기록. 그 달의 주차마다 한 줄이고, 펼치면 **팀원마다 자기 줄**이 있다.
  *
  * 적는 것은 항목 하나씩이다 — 한 사람이 한 주에 여러 개를 적고, **컨펌도 하나씩 따로** 된다.
- * 맨 아래 **컨펌 요청** 은 팀장이 결정해 줘야 하는 것들이 모이는 줄이다.
+ * 한 칸에 다 몰아 적으면 어디까지 봤는지 표시할 자리가 없다.
  *
- * **자기 키로 들어온 사람은 자기가 적은 항목만 고칠 수 있다.** 남의 칸은 회색으로 잠긴다.
- * 화면에서 잠그는 건 안내일 뿐이고 **막는 건 서버**다(`lib/auth.ts`) — 여기서 잠그는 이유는
- * 눌러 보고 나서 거절당하는 것보다 처음부터 안 눌리는 게 낫기 때문이다.
+ * 맨 아래 **컨펌 요청** 은 사람에게 안 붙는 줄이다 — 팀장이 결정해 줘야 하는 것들.
  *
- * 업무 건수와 사람 칩은 저장하지 않는다. 업무의 기한이 그 주에 들어오면 자동으로 세어진다.
+ * 업무 건수와 사람 칩은 저장하지 않는다. 업무의 기한이 그 주에 들어오면 자동으로 세어진다 —
+ * 사람이 두 군데에 같은 걸 적는 일이 없어야 한다.
+ *
+ * 팀원을 고르면 이 섹션 전체가 **그 사람 기준**으로 바뀐다. 건수도 그 사람 것이고,
+ * 사람 칩이 있던 자리에 그 주에 그 사람이 맡은 업무 이름이 뜨고, 적는 줄도 그 사람 것만 남는다.
  */
 export default function WeekPanel({
   monthId,
@@ -35,8 +38,6 @@ export default function WeekPanel({
   readOnly,
   filter,
   filterMember,
-  me,
-  lead,
   onFilter,
   onFilterMember,
   onAddItem,
@@ -53,13 +54,10 @@ export default function WeekPanel({
   filter: string;
   /** 팀원 섹션·업무 표와 같이 쓰는 담당자 필터. ALL 이면 팀 전체 */
   filterMember: string;
-  /** 내 Member.id. 팀장 키나 잠금 없는 보드면 빈 문자열이다. */
-  me: string;
-  /** 전부 고칠 수 있는 사람인지(팀장 키 또는 편집 키를 안 걸어 둔 보드) */
-  lead: boolean;
   onFilter: (weekId: string) => void;
   onFilterMember: (memberId: string) => void;
-  onAddItem: (weekId: string, by: string, ask: boolean) => void;
+  /** `by` 가 빈 문자열이면 컨펌 요청 줄에 붙는다 */
+  onAddItem: (weekId: string, by: string) => void;
   onPatchItem: (weekId: string, itemId: string, patch: Partial<WeekItem>) => void;
   onRemoveItem: (weekId: string, itemId: string) => void;
 }) {
@@ -73,13 +71,9 @@ export default function WeekPanel({
       ? "미배정"
       : (members.find((m) => m.id === filterMember)?.name ?? "");
 
-  /* 누가 무엇을 고칠 수 있는지. 서버 규칙(`lib/auth.ts`)과 같은 말을 화면에서 한 번 더 한다. */
-  const mayEdit = (it: WeekItem) => !readOnly && (lead || (Boolean(me) && it.by === me));
-  const mayAddFor = (memberId: string) => !readOnly && (lead || me === memberId);
-  const mayAsk = !readOnly && (lead || Boolean(me));
-
   /**
    * 펼쳐 둔 주. 다섯 주를 다 펼치면 화면이 안 읽혀서 **이번 주만 열어 두고** 나머지는 접는다.
+   * 사람으로 좁혀 봐도 마찬가지다 — 지난 주를 보려면 그 줄을 누른다.
    *
    * `null` 은 '아직 아무것도 안 눌렀다' 는 뜻이다. 빈 배열과 갈라 놓아야
    * **이번 주를 접은 것이 그대로 남는다**(빈 배열을 기본값으로 되돌리면 다시 펼쳐진다).
@@ -99,10 +93,6 @@ export default function WeekPanel({
         <h2>주간</h2>
         {/* 팀원을 골라 둔 채로 여기를 읽으면 숫자도 줄도 다르다. 그 사실을 제목이 말한다. */}
         {scoped && scopedName ? <span className="wscope">{scopedName} 기준</span> : null}
-        {/* 내 키로 들어왔으면 어디를 적을 수 있는지 알려 준다. */}
-        {!readOnly && !lead && me ? (
-          <span className="wmine">{members.find((m) => m.id === me)?.name ?? "내"} 칸만 편집 가능</span>
-        ) : null}
         <span className="rule" />
         {filter || scoped ? (
           <button
@@ -128,14 +118,15 @@ export default function WeekPanel({
           const now = id === thisWeek;
           const opened = isOpen(id);
 
+          // 미배정에는 적을 사람이 없다. 그때는 컨펌 요청 줄만 남는다.
           const writers = scoped ? members.filter((m) => m.id === filterMember) : members;
-          const shownItems = scoped
-            ? w.items.filter((x) => x.ask || x.by === filterMember)
+          const shown = scoped
+            ? w.items.filter((x) => x.by === filterMember || x.by === ASK)
             : w.items;
           // 접었을 때 뭘 말할지: **내가 봐야 할 것이 남았는지**가 먼저다.
-          const asks = shownItems.filter((x) => x.ask && x.text);
+          const asks = shown.filter((x) => x.by === ASK && x.text);
           const wait = asks.filter((x) => !x.done).length;
-          const wrote = shownItems.filter((x) => !x.ask && x.text).length;
+          const wrote = shown.filter((x) => x.by !== ASK && x.text).length;
 
           return (
             <div
@@ -170,6 +161,7 @@ export default function WeekPanel({
                   {/*
                     팀 전체로 볼 때는 **누가** 이 주에 붙어 있는지를 보여 주고,
                     한 사람으로 좁히면 같은 자리에 **무엇을** 하는지가 온다.
+                    둘 다 업무 목록에서 나오는 값이라 따로 적을 게 없다.
                   */}
                   {scoped ? (
                     <span className="wtasks">
@@ -201,7 +193,7 @@ export default function WeekPanel({
                   )}
                 </span>
 
-                {/* 접었을 때 남는 건 이 버튼뿐이다 — 컨펌할 것이 남았는지. */}
+                {/* 접었을 때 남는 건 이 버튼뿐이다 — 몇 개 중 몇 개를 컨펌했는지. */}
                 <button
                   type="button"
                   className="wsum"
@@ -230,33 +222,24 @@ export default function WeekPanel({
                     <ItemGroup
                       key={m.id}
                       name={m.name}
-                      items={w.items.filter((x) => !x.ask && x.by === m.id)}
+                      items={w.items.filter((x) => x.by === m.id)}
                       weekId={id}
                       today={today}
-                      lead={lead}
-                      canAdd={mayAddFor(m.id)}
-                      mayEdit={mayEdit}
-                      mine={Boolean(me) && me === m.id}
-                      onAdd={() => onAddItem(id, m.id, false)}
+                      readOnly={readOnly}
+                      onAdd={() => onAddItem(id, m.id)}
                       onPatch={onPatchItem}
                       onRemove={onRemoveItem}
                     />
                   ))}
-                  {/*
-                    컨펌 요청은 누구나 적을 수 있지만 **완료 표시는 팀장만** 한다.
-                    항목마다 누가 적었는지가 붙어 있어서, 팀장이 누구에게 답할지 안다.
-                  */}
+                  {/* 사람에게 안 붙는 줄. 팀장이 결정해 줘야 하는 것들이 여기 쌓인다. */}
                   <ItemGroup
                     ask
                     name="컨펌 요청"
-                    items={w.items.filter((x) => x.ask)}
-                    members={members}
+                    items={w.items.filter((x) => x.by === ASK)}
                     weekId={id}
                     today={today}
-                    lead={lead}
-                    canAdd={mayAsk}
-                    mayEdit={mayEdit}
-                    onAdd={() => onAddItem(id, me, true)}
+                    readOnly={readOnly}
+                    onAdd={() => onAddItem(id, ASK)}
                     onPatch={onPatchItem}
                     onRemove={onRemoveItem}
                   />
@@ -270,18 +253,14 @@ export default function WeekPanel({
   );
 }
 
-/* ---------- 한 묶음(사람 하나 또는 컨펌 요청) ---------- */
+/* ---------- 한 사람의 줄 ---------- */
 
 function ItemGroup({
   name,
   items,
-  members,
   weekId,
   today,
-  lead,
-  canAdd,
-  mine,
-  mayEdit,
+  readOnly,
   ask,
   onAdd,
   onPatch,
@@ -289,87 +268,73 @@ function ItemGroup({
 }: {
   name: string;
   items: WeekItem[];
-  members?: Member[];
   weekId: string;
   today: string;
-  lead: boolean;
-  canAdd: boolean;
-  mine?: boolean;
-  mayEdit: (it: WeekItem) => boolean;
+  readOnly: boolean;
   ask?: boolean;
   onAdd: () => void;
   onPatch: (weekId: string, itemId: string, patch: Partial<WeekItem>) => void;
   onRemove: (weekId: string, itemId: string) => void;
 }) {
   return (
-    <div
-      className={
-        "wgroup" + (ask ? " ask" : "") + (items.length ? " has" : "") + (mine ? " mine" : "")
-      }
-    >
+    <div className={"wgroup" + (ask ? " ask" : "") + (items.length ? " has" : "")}>
       <span className="wname">{name}</span>
 
       <div className="witems">
         {items.length === 0 ? (
           <p className="wempty">{ask ? "컨펌받을 것이 있으면 여기에" : "적은 것 없음"}</p>
         ) : (
-          items.map((it) => {
-            const editable = mayEdit(it);
-            const author = ask ? members?.find((m) => m.id === it.by)?.name : "";
-            return (
-              <div className={"witem" + (it.done ? " done" : "") + (editable ? "" : " locked")} key={it.id}>
-                <span className="wtextcell">
-                  {author ? <i className="wby">{author}</i> : null}
-                  <NoteField
-                    value={it.text}
-                    readOnly={!editable}
-                    onCommit={(v) => onPatch(weekId, it.id, { text: v })}
-                    placeholder={ask ? "무엇을 컨펌받아야 하는지" : "이 주에 진행한 일"}
-                    ariaLabel={`${name} 진행 내용`}
-                  />
-                </span>
+          items.map((it) => (
+            <div className={"witem" + (it.done ? " done" : "")} key={it.id}>
+              <NoteField
+                value={it.text}
+                readOnly={readOnly}
+                onCommit={(v) => onPatch(weekId, it.id, { text: v })}
+                placeholder={ask ? "무엇을 컨펌받아야 하는지" : "이 주에 진행한 일"}
+                ariaLabel={`${name} 진행 내용`}
+              />
 
-                {/*
-                  **컨펌 요청 줄에만** 완료 토글이 붙고, **팀장만** 누를 수 있다.
-                  누르면 미완료 ↔ 완료이고 완료로 바꾼 날이 옆에 박힌다.
-                */}
-                {ask ? (
-                  <button
-                    type="button"
-                    className={"wdone" + (it.done ? " on" : "")}
-                    disabled={!lead}
-                    aria-pressed={it.done}
-                    onClick={() => onPatch(weekId, it.id, { done: !it.done, doneAt: it.done ? "" : today })}
-                    title={lead ? "누르면 완료 ↔ 미완료" : "컨펌은 팀장이 합니다"}
-                  >
-                    {it.done ? "완료" : "미완료"}
-                    {it.done && it.doneAt ? (
-                      <i className="wdoneat">
-                        {Number(it.doneAt.slice(5, 7))}/{Number(it.doneAt.slice(8, 10))}
-                      </i>
-                    ) : null}
-                  </button>
-                ) : null}
-
+              {/*
+                **컨펌 요청 줄에만** 완료 토글이 붙는다. 컨펌하는 사람은 팀장 한 명이라,
+                팀원이 적은 진행 내용마다 토글을 두면 아무도 안 누르는 버튼이 스무 개 생긴다.
+                누르면 미완료 ↔ 완료이고 완료로 바꾼 날이 옆에 박힌다 — 언제 봤는지가 같이 남게.
+              */}
+              {ask ? (
                 <button
                   type="button"
-                  className="x"
-                  disabled={!editable}
-                  onClick={() => {
-                    if (it.text && !window.confirm(`"${it.text.slice(0, 30)}" 을 지웁니다.`)) return;
-                    onRemove(weekId, it.id);
-                  }}
-                  aria-label="항목 삭제"
+                  className={"wdone" + (it.done ? " on" : "")}
+                  disabled={readOnly}
+                  aria-pressed={it.done}
+                  onClick={() => onPatch(weekId, it.id, { done: !it.done, doneAt: it.done ? "" : today })}
+                  title="누르면 완료 ↔ 미완료"
                 >
-                  ×
+                  {it.done ? "완료" : "미완료"}
+                  {it.done && it.doneAt ? (
+                    <i className="wdoneat">
+                      {Number(it.doneAt.slice(5, 7))}/{Number(it.doneAt.slice(8, 10))}
+                    </i>
+                  ) : null}
                 </button>
-              </div>
-            );
-          })
+              ) : null}
+
+              <button
+                type="button"
+                className="x"
+                disabled={readOnly}
+                onClick={() => {
+                  if (it.text && !window.confirm(`"${it.text.slice(0, 30)}" 을 지웁니다.`)) return;
+                  onRemove(weekId, it.id);
+                }}
+                aria-label="항목 삭제"
+              >
+                ×
+              </button>
+            </div>
+          ))
         )}
       </div>
 
-      <button type="button" className="wadd" disabled={!canAdd} onClick={onAdd} title="줄 하나 더">
+      <button type="button" className="wadd" disabled={readOnly} onClick={onAdd} title="줄 하나 더">
         ＋
       </button>
     </div>

@@ -78,14 +78,7 @@ export default function Board({
   const [save, setSave] = useState<SaveState>("idle");
   const [writeKey, setWriteKey] = useState<string | null>(null);
   const [keyLoaded, setKeyLoaded] = useState(false);
-  /**
-   * 내가 누구인지. lead 면 전부 고칠 수 있고, 아니면 그 id 의 주간 항목만 고칠 수 있다.
-   * null 은 아직 서버에 안 물어본 상태 — 그동안은 남의 칸이 잠겨 있다.
-   */
-  const [me, setMe] = useState<{ id: string; lead: boolean } | null>(null);
   const [server, setServer] = useState<BoardState | null>(null);
-  /** 서버가 권한 밖이라고 거절한 이유. 띄웠다가 사람이 닫으면 사라진다. */
-  const [denied, setDenied] = useState<string | null>(null);
 
   /**
    * 오늘 날짜는 마운트 뒤에 넣는다. 서버는 UTC, 브라우저는 KST 라 렌더 중에 읽으면
@@ -144,35 +137,6 @@ export default function Board({
     if (readOnly && keyLoaded) setSave("readonly");
   }, [readOnly, keyLoaded]);
 
-  /*
-   * 내 키가 누구인지는 서버가 알려 준다. 첫 화면은 키 없이 그려지므로(키는 이 브라우저에만 있다)
-   * 마운트 뒤에 한 번 물어본다. `lead` 면 전부 고칠 수 있고, `me` 가 있으면 그 사람 칸만 고친다.
-   */
-  useEffect(() => {
-    if (!keyLoaded) return;
-    if (!writeKey) {
-      setMe({ id: "", lead: !keyRequired });
-      return;
-    }
-    let dropped = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/board", {
-          cache: "no-store",
-          headers: { "x-board-key": writeKey },
-        });
-        if (!res.ok) return;
-        const body = (await res.json()) as { me: string | null; lead: boolean };
-        if (!dropped) setMe({ id: body.me ?? "", lead: body.lead });
-      } catch {
-        /* 못 물어봤으면 남의 칸이 잠긴 채로 둔다 — 열어 주는 쪽으로 틀리지 않게 */
-      }
-    })();
-    return () => {
-      dropped = true;
-    };
-  }, [writeKey, keyLoaded, keyRequired]);
-
   const commit = useCallback(async () => {
     if (inflight.current) {
       pending.current = true;
@@ -207,17 +171,6 @@ export default function Board({
         }
         setWriteKey(null);
         setSave("readonly");
-        return;
-      }
-      /*
-       * 403 — 키는 맞는데 권한 밖을 고쳤다. 화면이 잠가 뒀는데도 여기까지 왔다는 건
-       * 화면과 서버 규칙이 어긋났다는 뜻이라, 이유를 그대로 띄우고 저장된 값을 다시 불러 준다.
-       */
-      if (res.status === 403) {
-        pending.current = false;
-        const body = (await res.json()) as { error?: string };
-        setDenied(body.error ?? "고칠 수 없는 곳을 바꿨습니다.");
-        setSave("error");
         return;
       }
       if (!res.ok) {
@@ -453,12 +406,12 @@ export default function Board({
    * 빈 주는 저장에 없다. 처음 한 줄이 생길 때 주도 생긴다 —
    * 아무도 안 쓴 주가 열두 줄씩 쌓이는 걸 막는다.
    */
-  const addWeekItem = (weekId: string, by: string, ask: boolean) =>
+  const addWeekItem = (weekId: string, by: string) =>
     mutate(
       (s) =>
         putWeek(s, weekId, (cur) => ({
           ...cur,
-          items: [...cur.items, { id: newId(), by, ask, text: "", done: false, doneAt: "" }],
+          items: [...cur.items, { id: newId(), by, text: "", done: false, doneAt: "" }],
         })),
       1200,
     );
@@ -586,15 +539,6 @@ export default function Board({
         </div>
       </header>
 
-      {denied ? (
-        <p className="banner stop">
-          <b>고칠 수 없는 곳입니다</b> — {denied}
-          <button type="button" onClick={() => setDenied(null)}>
-            닫기
-          </button>
-        </p>
-      ) : null}
-
       {server ? (
         <p className="banner stop">
           <b>다른 사람이 먼저 저장했습니다</b> — 방금 바꾼 내용은 아직 반영되지 않았습니다. 저장된 내용을 불러온 뒤
@@ -663,8 +607,6 @@ export default function Board({
         readOnly={readOnly}
         filter={filterWeek}
         filterMember={filterMember}
-        me={me?.id ?? ""}
-        lead={me?.lead ?? false}
         onFilter={setFilterWeek}
         onFilterMember={setFilterMember}
         onAddItem={addWeekItem}
