@@ -1,0 +1,645 @@
+/*
+ * 색·서체는 확장 진행판(../expansion-board)과 같은 값이다. 두 보드를 오가는 사람이
+ * 같은 화면 안에 있다고 느끼는 게 목적이라, 여기서 임의로 바꾸지 않는다.
+ */
+:root{
+  --ground:#F1F2F6;
+  --surface:#FFFFFF;
+  --surface-2:#F7F8FB;
+  --line:#DEE1EA;
+  --line-soft:#E9EBF1;
+  --ink:#14161F;
+  --ink-2:#3A4055;
+  --muted:#5A6076;
+  --faint:#8B92A6;
+  --accent:#2F3A6E;
+  --accent-soft:#E6E9F5;
+  --ok:#2F7A57;      --ok-bg:#E4F0EA;   --ok-line:#BCDBCB;
+  --go:#9E6614;      --go-bg:#F6EBD8;   --go-line:#E4CDA3;
+  --stop:#A93F3F;    --stop-bg:#F6E5E5; --stop-line:#E5BEBE;
+  --idle:#8B92A6;    --idle-bg:#EFF1F5; --idle-line:#E2E5EC;
+  --shadow:0 1px 2px rgba(20,22,31,.05), 0 8px 24px -16px rgba(20,22,31,.18);
+  --sans:var(--font-sans),"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --mono:var(--font-mono),var(--font-sans),ui-monospace,SFMono-Regular,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --ground:#0F1117; --surface:#171A23; --surface-2:#1C202B;
+    --line:#2B3040; --line-soft:#232734;
+    --ink:#E7E9F0; --ink-2:#C3C8D8; --muted:#98A0B5; --faint:#6C7489;
+    --accent:#96A4E6; --accent-soft:#232941;
+    --ok:#5FBB8B;   --ok-bg:#17301F;   --ok-line:#284A34;
+    --go:#DBA24A;   --go-bg:#332714;   --go-line:#4D3A1B;
+    --stop:#DE8080; --stop-bg:#331C1C; --stop-line:#4D2A2A;
+    --idle:#6C7489; --idle-bg:#1F232E; --idle-line:#2B3040;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+    color-scheme:dark;
+  }
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:var(--sans); font-size:14px; line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1240px; margin:0 auto; padding:28px 20px 72px}
+h1,h2{margin:0; text-wrap:balance; font-weight:600; letter-spacing:-.01em}
+
+/* ---------- 머리말 ---------- */
+.masthead{
+  display:flex; align-items:flex-start; justify-content:space-between;
+  gap:20px; flex-wrap:wrap; padding-bottom:18px; border-bottom:1px solid var(--line);
+}
+.masthead h1{
+  font-size:27px; font-weight:800; letter-spacing:-.02em; line-height:1.2;
+  display:flex; align-items:center; gap:10px;
+}
+.masthead h1::before{
+  content:""; width:11px; height:11px; border-radius:3px; flex:0 0 auto; background:var(--accent);
+}
+.masthead p{margin:7px 0 0; color:var(--muted); font-size:13px; max-width:62ch}
+.eyebrow{
+  font-family:var(--mono); font-size:10.5px; font-weight:500;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--accent);
+  display:block; margin-bottom:7px;
+}
+.headright{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.savepill{
+  display:inline-flex; align-items:center; gap:7px; flex:0 0 auto;
+  font-family:var(--mono); font-size:11px; letter-spacing:.02em;
+  padding:6px 11px; border-radius:999px;
+  border:1px solid var(--line); background:var(--surface); color:var(--muted);
+}
+.savepill .dot{width:6px; height:6px; border-radius:50%; background:var(--idle)}
+.savepill[data-s="saving"] .dot{background:var(--go)}
+.savepill[data-s="saved"] .dot{background:var(--ok)}
+.savepill[data-s="error"] .dot,.savepill[data-s="conflict"] .dot{background:var(--stop)}
+.savepill[data-s="error"],.savepill[data-s="conflict"]{color:var(--stop); border-color:var(--stop-line)}
+.keybtn{
+  flex:0 0 auto; padding:6px 12px; border-radius:999px; cursor:pointer;
+  border:1px solid var(--line); background:var(--surface); color:var(--muted);
+  font-family:var(--sans); font-size:12px;
+}
+.keybtn:hover{border-color:var(--accent); color:var(--accent)}
+.keybtn:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+/* ---------- 알림줄 ---------- */
+.banner{
+  margin:14px 0 0; padding:9px 14px; border-radius:8px;
+  border:1px solid var(--line); background:var(--surface);
+  color:var(--muted); font-size:12.5px;
+}
+.banner b{color:var(--ink); font-weight:600}
+.banner.stop{border-color:var(--stop-line); background:var(--stop-bg); color:var(--stop)}
+.banner.stop b{color:var(--stop)}
+.banner button{
+  margin-left:8px; padding:3px 10px; border-radius:6px; cursor:pointer;
+  border:1px solid currentColor; background:transparent; color:inherit;
+  font-family:var(--sans); font-size:12px;
+}
+
+/* ---------- 섹션 공통 ---------- */
+.sec{margin-top:30px}
+.sechead{display:flex; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap}
+.sechead h2{font-size:17px; font-weight:700; flex:0 0 auto}
+.sechead .rule{flex:1; height:1px; background:var(--line); min-width:20px}
+.hint{color:var(--faint); font-size:12px; margin:9px 0 0}
+.card{
+  background:var(--surface); border:1px solid var(--line); border-radius:10px;
+  box-shadow:var(--shadow); overflow:hidden; border-top:3px solid var(--accent);
+}
+.ghost{
+  padding:6px 13px; border-radius:7px; cursor:pointer;
+  border:1px solid var(--line); background:var(--surface); color:var(--muted);
+  font-family:var(--sans); font-size:12.5px; white-space:nowrap;
+}
+.ghost.sm{padding:5px 11px; font-size:12px}
+.ghost:hover{border-color:var(--accent); color:var(--accent)}
+.ghost:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.ghost:disabled{opacity:.45; cursor:not-allowed}
+.ghost:disabled:hover{border-color:var(--line); color:var(--muted)}
+.ghost.on{background:var(--accent); border-color:var(--accent); color:var(--surface)}
+@media (prefers-color-scheme: dark){ .ghost.on{color:#11131A} }
+
+.empty{
+  padding:26px 20px; border-radius:10px; text-align:center;
+  border:1px dashed var(--line); background:var(--surface-2); color:var(--muted);
+}
+.empty p{margin:0 0 12px; font-size:13px}
+.empty b{color:var(--ink)}
+.empty .hint{margin:12px 0 0}
+.emptybtns{display:flex; gap:8px; justify-content:center; flex-wrap:wrap}
+
+/* 글자 칸은 평소에 테두리가 없다. 표 위에 상자가 스무 개 뜨면 읽을 수가 없다. */
+.field{
+  width:100%; min-width:0; padding:3px 6px; border-radius:5px;
+  border:1px solid transparent; background:transparent; color:var(--ink);
+  font-family:var(--sans); font-size:13px; line-height:1.45;
+}
+.field::placeholder{color:var(--faint)}
+.field:hover:not(:read-only){background:var(--surface-2)}
+.field:focus{outline:none; background:var(--surface); border-color:var(--accent)}
+textarea.field{resize:none; overflow:hidden}
+.sel{
+  max-width:100%; padding:4px 6px; border-radius:6px;
+  border:1px solid var(--line); background:var(--surface); color:var(--ink-2);
+  font-family:var(--sans); font-size:12.5px;
+}
+.sel:focus{outline:none; border-color:var(--accent)}
+.sel:disabled{opacity:.6}
+.dt{
+  width:100%; padding:4px 6px; border-radius:6px;
+  border:1px solid var(--line); background:var(--surface); color:var(--muted);
+  font-family:var(--mono); font-size:11.5px;
+}
+.dt.has{color:var(--ink); font-weight:500}
+.dt:focus{outline:none; border-color:var(--accent)}
+.dt.late{border-color:var(--stop-line); background:var(--stop-bg); color:var(--stop); font-weight:700}
+.dt:disabled{opacity:1; border-color:transparent; background:transparent}
+.x{
+  width:24px; height:24px; flex:0 0 auto; border-radius:6px; cursor:pointer;
+  border:1px solid transparent; background:transparent; color:var(--faint);
+  font-size:15px; line-height:1; display:flex; align-items:center; justify-content:center;
+}
+.x:hover{background:var(--stop-bg); border-color:var(--stop-line); color:var(--stop)}
+.x:disabled{opacity:.3; cursor:not-allowed}
+.x:disabled:hover{background:transparent; border-color:transparent; color:var(--faint)}
+
+/* 상태 칩 — 눌러서 시작 전 → 진행 → 완료 로 돈다. 확장 진행판의 단계 칸과 같은 규칙. */
+.chip{
+  padding:4px 0; width:100%; border-radius:6px; cursor:pointer;
+  border:1px solid var(--line); background:var(--surface);
+  box-shadow:inset 3px 0 0 var(--idle-line);
+  font-family:var(--sans); font-size:11.5px; font-weight:500; color:var(--faint);
+}
+.chip:hover{background:var(--surface-2)}
+.chip:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.chip.s1{box-shadow:inset 3px 0 0 var(--go); color:var(--go); border-color:var(--go-line)}
+.chip.s2{
+  box-shadow:inset 3px 0 0 var(--ok); background:var(--ok-bg);
+  border-color:var(--ok-line); color:var(--ok);
+}
+.chip:disabled{cursor:default}
+
+/* 진행 막대 — 지표·프로젝트·팀원이 같은 모양을 쓴다. */
+.bar{
+  position:relative; display:block; height:7px; border-radius:99px;
+  background:var(--idle-bg); border:1px solid var(--line-soft); overflow:hidden;
+}
+.bar .fill{
+  display:block; height:100%; border-radius:99px;
+  background:var(--tone,var(--accent)); transition:width .2s ease;
+}
+.bar.sm{height:5px}
+/* 막대 밖으로 나가야 보이는 눈금이라 overflow 를 덮어쓴다. */
+.mcard .bar{overflow:visible}
+.mcard .bar .fill{overflow:hidden}
+.bar .pace{
+  position:absolute; top:-3px; bottom:-3px; width:2px; border-radius:2px;
+  background:var(--ink); opacity:.42;
+}
+
+/* ---------- 월 목표 ---------- */
+.monthnav{display:flex; align-items:center; gap:6px}
+.mstep{
+  width:26px; height:26px; border-radius:7px; cursor:pointer;
+  border:1px solid var(--line); background:var(--surface); color:var(--muted);
+  font-size:15px; line-height:1;
+}
+.mstep:hover{border-color:var(--accent); color:var(--accent)}
+.msel{
+  padding:4px 8px; border-radius:7px; cursor:pointer;
+  border:1px solid var(--line); background:var(--surface); color:var(--ink);
+  font-family:var(--mono); font-size:12.5px; font-weight:500;
+}
+.msel:focus{outline:none; border-color:var(--accent)}
+
+/*
+ * 마켓 탭. 지금은 US 한 칸이라 탭처럼 안 보일 수도 있어서, 밑줄과 오른쪽 안내로
+ * "여기 칸이 늘어난다" 를 알려 준다. 확장 진행판의 브랜드 탭과 같은 모양이다.
+ */
+.mtabs{
+  display:flex; align-items:center; gap:2px; margin:0 0 14px;
+  border-bottom:1px solid var(--line); overflow-x:auto;
+}
+/* 2단째(마켓)는 한 칸 들여쓰고 작게 — 브랜드 밑에 딸린 축이라는 게 보이게. */
+.mtabs.sub{margin:-8px 0 16px 18px}
+.mtabs.sub button{font-size:12px; padding:6px 12px}
+.mtabs button{
+  appearance:none; border:none; background:transparent; cursor:pointer;
+  padding:8px 15px; margin-bottom:-1px; white-space:nowrap;
+  font-family:var(--mono); font-size:13px; font-weight:500; letter-spacing:.04em;
+  color:var(--muted); border-bottom:2.5px solid transparent;
+}
+.mtabs button:hover{color:var(--ink)}
+.mtabs button[aria-selected="true"]{color:var(--tc,var(--accent)); font-weight:700; border-bottom-color:var(--tc,var(--accent))}
+.mtabs button[data-b="mumuki"]{--tc:#3B4CA8}
+.mtabs button[data-b="pethroom"]{--tc:#0E7C86}
+@media (prefers-color-scheme: dark){
+  .mtabs button[data-b="mumuki"]{--tc:#95A2F2}
+  .mtabs button[data-b="pethroom"]{--tc:#5FC2CB}
+}
+.mtabs button:focus-visible{outline:2px solid var(--accent); outline-offset:-3px; border-radius:6px}
+.mtabs .soon{
+  margin-left:auto; padding-left:14px; flex:0 0 auto;
+  color:var(--faint); font-size:11.5px;
+}
+@media (max-width:820px){ .mtabs .soon{display:none} }
+
+/*
+ * 브랜드 줄. 왼쪽 이름표 + 그 브랜드 지표들. 두 줄이 같은 격자를 쓰기 때문에
+ * 무무키 총매출 바로 밑에 페스룸 총매출이 온다 — 위아래로 훑으면 그대로 비교가 된다.
+ */
+.mrows{display:flex; flex-direction:column; gap:14px}
+.mrow{display:grid; grid-template-columns:104px 1fr; gap:12px; align-items:start}
+.mrowlabel{
+  display:flex; flex-direction:column; gap:3px; padding-top:14px;
+  font-size:14px; font-weight:700; letter-spacing:-.01em; color:var(--ink);
+}
+.mrowlabel .name{display:flex; align-items:center; gap:7px}
+.mrowlabel .dot{width:9px; height:9px; border-radius:3px; flex:0 0 auto; background:var(--bc,var(--idle))}
+/* 이 줄 숫자가 어디서 왔는지. 시트가 하루 이틀 늦으니 '언제까지' 가 핵심이다. */
+.fed{
+  font-family:var(--mono); font-size:10px; font-weight:500; letter-spacing:.02em;
+  color:var(--bc,var(--muted)); padding-left:16px; line-height:1.4;
+}
+.fed.none{color:var(--faint)}
+.fed.bad{color:var(--stop); cursor:help}
+.mrow[data-ch="amazon"]{--bc:#3B4CA8}
+.mrow[data-ch="d2c"]{--bc:#8E3D9E}
+@media (prefers-color-scheme: dark){
+  .mrow[data-ch="amazon"]{--bc:#95A2F2}
+  .mrow[data-ch="d2c"]{--bc:#D394E0}
+}
+
+.mgrid{display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(196px,1fr))}
+.mcard{
+  --tone:var(--accent);
+  display:flex; flex-direction:column; gap:9px; padding:13px 14px 12px;
+  background:var(--surface); border:1px solid var(--line); border-radius:10px;
+  box-shadow:var(--shadow); border-top:3px solid var(--tone);
+}
+.mcard[data-t="ok"]{--tone:var(--ok)}
+/* on = 이 시점 기대보다 앞서 있다. 파랑을 그대로 둬서 '문제 없음' 을 색으로 말한다. */
+.mcard[data-t="on"]{--tone:var(--accent)}
+.mcard[data-t="go"]{--tone:var(--go)}
+.mcard[data-t="stop"]{--tone:var(--stop)}
+.mcard[data-t="none"]{--tone:var(--idle-line)}
+.mtop{display:flex; align-items:center; gap:6px; min-height:24px}
+.mname{flex:1 1 auto; font-size:13px; font-weight:600}
+.mname.ro{padding:3px 0; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.mrate{
+  flex:0 0 auto; font-family:var(--mono); font-size:14px; font-weight:700;
+  color:var(--tone); letter-spacing:-.02em;
+}
+.mcard[data-t="none"] .mrate{color:var(--faint)}
+.usel{
+  flex:0 0 auto; padding:3px 4px; border-radius:5px;
+  border:1px solid var(--line); background:var(--surface); color:var(--muted);
+  font-family:var(--mono); font-size:11px;
+}
+/*
+ * 세 칸 격자다 — [값+단위] [/] [목표+단위 또는 비율].
+ * 양쪽 칸을 1fr 로 묶어야 슬래시와 오른쪽 숫자가 **카드마다 같은 자리**에 선다.
+ * flex 로 하면 숫자 길이(최소 폭)에 따라 칸이 밀려서 네 칸이 서로 안 맞는다.
+ */
+.mnums{
+  display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  align-items:baseline; gap:5px;
+}
+/*
+ * 값(+단위) 덩어리. 어느 카드에서나 같은 폭을 차지해서 가운데 슬래시와 오른쪽 숫자가
+ * 카드마다 같은 자리에 선다 — 네 칸을 가로로 훑을 때 이게 정렬을 만든다.
+ */
+.valwrap,.tgtwrap{display:flex; align-items:baseline; gap:5px; min-width:0}
+.valwrap .num.big,.tgtwrap .num.tgt{flex:0 1 auto; min-width:0}
+.num{
+  min-width:0; padding:3px 6px; border-radius:6px; text-align:right;
+  border:1px solid transparent; background:transparent; color:var(--ink);
+  font-family:var(--mono); font-size:13px;
+}
+.num:hover:not(:read-only){background:var(--surface-2)}
+.num:focus{outline:none; background:var(--surface); border-color:var(--accent)}
+.num.big{flex:1 1 auto; font-size:19px; font-weight:700; letter-spacing:-.02em; padding-left:0; text-align:left}
+/* 시트에서 온 값. 입력 칸처럼 보이면 눌러 보고 안 고쳐진다고 여기니 아예 글자로 둔다. */
+.num.big.fromsheet{
+  padding:3px 0; cursor:default;
+  border-bottom:1.5px dotted var(--line); border-radius:0;
+}
+.num.tgt{color:var(--muted); font-size:13px}
+.slash{color:var(--faint); font-size:13px}
+/* 계산으로만 나오는 비율(TACoS). 값 옆에 붙어서 `2,508 USD / TACoS 10.1%` 로 읽힌다. */
+.ratioval{
+  min-width:0; display:inline-flex; align-items:baseline; gap:4px;
+  font-family:var(--mono); font-size:13px; color:var(--ink-2); white-space:nowrap;
+}
+.ratioval .tag{font-size:9.5px; font-style:normal; letter-spacing:.06em; color:var(--faint)}
+.unit{flex:0 0 auto; font-family:var(--mono); font-size:10px; color:var(--faint); letter-spacing:.04em}
+.mfoot{display:flex; justify-content:space-between; gap:8px; font-size:11.5px; color:var(--ink-2)}
+.mfoot .muted{color:var(--faint)}
+.mfoot .over{color:var(--ok); font-weight:600}
+/* 예산 초과는 넘어서 좋을 게 없는 초과다. 목표 초과와 같은 색을 쓰면 안 된다. */
+.mfoot .under{color:var(--stop); font-weight:600}
+/* 적을수록 좋은 지표라는 표시. 숫자 앞의 작은 화살표 하나로 끝낸다. */
+.mrate .down{font-style:normal; font-size:11px; opacity:.7; margin-right:1px}
+.dirbtn{
+  flex:0 0 auto; width:22px; height:22px; border-radius:5px; cursor:pointer;
+  border:1px solid var(--line); background:var(--surface); color:var(--muted);
+  font-size:12px; line-height:1;
+}
+.dirbtn:hover{border-color:var(--accent); color:var(--accent)}
+.dirbtn.down{border-color:var(--go-line); background:var(--go-bg); color:var(--go)}
+.addcard{
+  min-height:120px; border-radius:10px; cursor:pointer;
+  border:1px dashed var(--line); background:transparent; color:var(--muted);
+  font-family:var(--sans); font-size:13px;
+}
+.addcard:hover{border-color:var(--accent); color:var(--accent)}
+
+/* ---------- 프로젝트 ---------- */
+.plist{padding:2px 0}
+.prow{
+  display:grid; align-items:center; gap:10px;
+  grid-template-columns:76px minmax(200px,1fr) 124px 116px 122px 134px 24px;
+  padding:9px 12px; border-bottom:1px solid var(--line-soft);
+}
+.prow:last-child{border-bottom:none}
+.prow.picked{background:var(--accent-soft)}
+.pmain{min-width:0}
+.pname{font-size:14px; font-weight:600}
+.pgoal{font-size:12px; color:var(--muted)}
+.pprog{
+  display:flex; flex-direction:column; gap:4px; padding:4px 6px;
+  border:1px solid transparent; border-radius:7px; background:transparent; cursor:pointer;
+}
+.pprog:hover{border-color:var(--line); background:var(--surface-2)}
+.pcount{font-family:var(--mono); font-size:10.5px; color:var(--muted); text-align:left}
+.lateflag{color:var(--stop); font-weight:700}
+
+/* ---------- 팀원 ---------- */
+/* 업무 표를 훑기 전에 "누가 무엇을 붙잡고 있는지" 를 먼저 읽는 자리. 칸 전체가 버튼이다. */
+.wholist{display:grid; grid-template-columns:repeat(auto-fit,minmax(186px,1fr)); gap:10px}
+.whotile{
+  display:flex; flex-direction:column; gap:7px; text-align:left; cursor:pointer;
+  padding:11px 13px 10px; border-radius:10px;
+  border:1px solid var(--line); background:var(--surface); box-shadow:var(--shadow);
+  font-family:var(--sans); color:var(--ink);
+}
+.whotile:hover{border-color:var(--accent)}
+.whotile:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.whotile.picked{border-color:var(--accent); background:var(--accent-soft)}
+.whotop{display:flex; align-items:baseline; gap:6px; min-width:0}
+/* 이름은 안 접힌다 — 직급이 길어도 "임영
+유" 처럼 이름이 쪼개지면 안 된다. */
+.whoname{flex:0 0 auto; white-space:nowrap; font-size:13.5px; font-weight:700; letter-spacing:-.01em}
+.whorole{
+  min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-family:var(--mono); font-size:10.5px; font-style:normal; color:var(--faint);
+}
+.whotop .lateflag{margin-left:auto; flex:0 0 auto; font-size:11px; font-style:normal}
+/* 두 줄까지 보여 주고 나머지는 숫자로 접는다. 칸 높이가 사람마다 달라지면 훑을 수가 없다. */
+.whonow{display:flex; align-items:flex-start; gap:6px; min-height:32px; font-size:11.5px; color:var(--ink-2)}
+.whonow.empty{color:var(--faint)}
+.whonow .tag{
+  flex:0 0 auto; margin-top:1px; padding:1px 5px; border-radius:4px;
+  font-family:var(--mono); font-size:9.5px; font-style:normal; letter-spacing:.06em;
+  color:var(--accent); background:var(--accent-soft);
+}
+.whotile.picked .whonow .tag{background:var(--surface)}
+.whonow .tag.soonish{color:var(--faint); background:var(--idle-bg)}
+.wholines{display:flex; flex-direction:column; gap:2px; min-width:0}
+.whotask{display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.whodue{margin-left:5px; font-family:var(--mono); font-size:10px; font-style:normal; color:var(--faint)}
+.whomore{color:var(--faint); font-size:10.5px}
+.whofoot{display:flex; align-items:center; gap:8px}
+.whofoot .bar{flex:1}
+.whocount{font-family:var(--mono); font-size:10.5px; color:var(--muted); white-space:nowrap}
+
+/* ---------- 주간 ---------- */
+.wlist{padding:2px 0}
+.wrow{padding:9px 12px; border-bottom:1px solid var(--line-soft)}
+.whead{
+  display:grid; align-items:center; gap:10px;
+  grid-template-columns:126px minmax(196px,1fr) 150px;
+}
+.wrow:last-child{border-bottom:none}
+.wrow.picked{background:var(--accent-soft)}
+/* 이번 주는 왼쪽에 선을 하나 세워 둔다 — 열두 줄 중 어디를 봐야 하는지가 먼저 보이게. */
+.wrow.now{box-shadow:inset 3px 0 0 var(--accent)}
+.wlabel{
+  display:flex; align-items:baseline; gap:7px; padding:4px 6px; cursor:pointer;
+  border:1px solid transparent; border-radius:7px; background:transparent; text-align:left;
+}
+.wlabel:hover{border-color:var(--line); background:var(--surface-2)}
+.wdate{font-family:var(--mono); font-size:12.5px; font-weight:600; color:var(--ink)}
+.wnow{
+  font-size:10px; font-weight:700; letter-spacing:.02em; color:var(--accent);
+  padding:1px 5px; border-radius:999px; background:var(--accent-soft); white-space:nowrap;
+}
+/* 건수 한 줄 + 그 밑에 사람(또는 고른 사람의 업무). 한 칸 안에서 위아래로 쌓는다. */
+.wwho{display:flex; flex-direction:column; gap:4px; min-width:0}
+.wcount{font-family:var(--mono); font-size:11px; color:var(--muted); white-space:nowrap}
+.wcount .muted{color:var(--faint)}
+.wchips{display:flex; flex-wrap:wrap; gap:4px}
+.wchip{
+  display:inline-flex; align-items:center; gap:4px; flex:0 0 auto; cursor:pointer;
+  padding:2px 7px; border-radius:99px;
+  border:1px solid var(--line); background:var(--surface-2); color:var(--ink-2);
+  font-family:var(--sans); font-size:11px; line-height:1.4; white-space:nowrap;
+}
+.wchip:hover{border-color:var(--accent); color:var(--accent); background:var(--surface)}
+.wchip:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+.wchip .n{font-family:var(--mono); font-size:10px; font-style:normal; color:var(--faint)}
+.wchip .n.late{color:var(--stop); font-weight:700}
+/* 한 사람으로 좁히면 같은 자리에 그 사람 업무 이름이 온다. */
+.wtasks{display:flex; flex-direction:column; gap:1px; min-width:0}
+.wtask{
+  display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-size:11.5px; color:var(--ink-2);
+}
+.wtask.s2{color:var(--faint); text-decoration:line-through}
+.wtdue{margin-left:5px; font-family:var(--mono); font-size:10px; font-style:normal; color:var(--faint)}
+.wmore{font-size:10.5px; color:var(--faint)}
+/* 제목 옆 배지. 지금 보는 숫자가 팀 전체가 아니라는 것을 여기서 말한다. */
+.wscope{
+  flex:0 0 auto; padding:2px 9px; border-radius:99px;
+  border:1px solid var(--accent-soft); background:var(--accent-soft); color:var(--accent);
+  font-size:11.5px; font-weight:600;
+}
+/* 접었을 때 남는 버튼. 몇 개 중 몇 개를 컨펌했는지만 말한다. */
+.wsum{
+  display:flex; align-items:center; gap:6px; min-width:0; cursor:pointer; text-align:left;
+  padding:4px 7px; border-radius:7px; border:1px solid transparent; background:transparent;
+  font-family:var(--sans); font-size:12px; color:var(--ink-2);
+}
+.wsum:hover{border-color:var(--line); background:var(--surface-2)}
+.wsum:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+.wsum .caret{flex:0 0 auto; font-style:normal; font-size:10px; color:var(--faint)}
+.wprog{font-family:var(--mono); font-size:11px; white-space:nowrap; color:var(--muted)}
+.wprog.all{color:var(--ok); font-weight:700}
+.wprog.wait{color:var(--go); font-weight:700}
+.wprog.none{color:var(--faint)}
+
+/* 펼친 칸. 사람마다 한 묶음이고, 이름 폭이 고정이라 글이 세로로 가지런히 선다. */
+.wbody{display:flex; flex-direction:column; gap:3px; margin:9px 0 2px 12px; padding-left:12px; border-left:2px solid var(--line-soft)}
+.wrow.now .wbody{border-left-color:var(--accent-soft)}
+.wgroup{display:grid; grid-template-columns:74px minmax(0,1fr) 24px; align-items:start; gap:8px}
+.wname{
+  padding-top:5px; font-size:11.5px; font-weight:600; color:var(--muted);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.witems{display:flex; flex-direction:column; gap:2px; min-width:0}
+/* 항목 한 줄: 글 · 지우기. 완료 토글은 컨펌 요청 줄에만 붙는다(컨펌하는 사람은 팀장 한 명). */
+.witem{display:grid; grid-template-columns:minmax(0,1fr) 24px; align-items:center; gap:6px}
+.wgroup.ask .witem{grid-template-columns:minmax(0,1fr) 82px 24px}
+.witem.done .field.note{color:var(--faint)}
+.wempty{margin:0; padding:4px 6px; font-size:11.5px; color:var(--faint)}
+/* 미완료가 기본이라 조용하고, 완료로 바꾼 것만 색을 얻는다. */
+.wdone{
+  display:inline-flex; align-items:center; justify-content:center; gap:4px; cursor:pointer;
+  padding:3px 8px; border-radius:6px; white-space:nowrap;
+  border:1px solid var(--line); background:var(--surface); color:var(--faint);
+  font-family:var(--sans); font-size:11.5px; font-weight:500;
+  box-shadow:inset 3px 0 0 var(--idle-line);
+}
+.wdone:hover{background:var(--surface-2)}
+.wdone:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.wdone.on{
+  border-color:var(--ok-line); background:var(--ok-bg); color:var(--ok); font-weight:600;
+  box-shadow:inset 3px 0 0 var(--ok);
+}
+.wdone:disabled{cursor:default; opacity:.6}
+.wdoneat{font-family:var(--mono); font-size:9.5px; font-style:normal; opacity:.8}
+/* 줄 하나 더. 눌러야 생기는 자리라 옅게 두고 묶음에 마우스를 올리면 살아난다. */
+.wadd{
+  width:24px; height:24px; margin-top:2px; flex:0 0 auto; cursor:pointer;
+  border:1px dashed var(--line); border-radius:6px; background:transparent; color:var(--faint);
+  font-family:var(--sans); font-size:12px; line-height:1; opacity:.55;
+}
+.wgroup:hover .wadd{opacity:1}
+.wadd:hover{border-style:solid; border-color:var(--accent); color:var(--accent)}
+.wadd:focus-visible{opacity:1; outline:2px solid var(--accent); outline-offset:1px}
+.wadd:disabled{opacity:.25; cursor:not-allowed}
+/* 컨펌 요청은 사람 줄과 섞이면 안 된다. 위에 선을 긋고, 비어 있을 땐 물러나 있는다. */
+.wgroup.ask{margin-top:5px; padding-top:6px; border-top:1px dashed var(--line-soft)}
+.wgroup.ask .wname{color:var(--go); font-weight:700}
+.wgroup.ask:not(.has):not(:hover):not(:focus-within){opacity:.6}
+
+/* 표 안의 메모 칸. 여러 줄이 될 수 있어서 본문보다 조금 작다. */
+.field.note{font-size:12.5px; color:var(--ink-2)}
+
+/* ---------- 업무 표 ---------- */
+.donetog{
+  display:inline-flex; align-items:center; gap:6px; color:var(--muted); font-size:12px; cursor:pointer;
+}
+/* 제목 옆에 붙는 드롭다운. 고른 사람이 있으면 색으로 '지금 좁혀져 있다' 를 말한다. */
+/* select 는 value 를 속성으로 반영하지 않는다. 켜졌는지는 data-on 으로 넘겨받는다. */
+.headsel{max-width:160px; padding:5px 8px}
+.headsel[data-on="1"]{border-color:var(--accent); color:var(--accent); font-weight:600}
+.filterbar{
+  display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+  margin:0 0 10px; padding:7px 13px; border-radius:8px;
+  border:1px solid var(--accent-soft); background:var(--accent-soft);
+  color:var(--muted); font-size:12.5px;
+}
+.filterbar b{color:var(--accent)}
+/* 칸이 좁으면 표가 접히는 대신 옆으로 밀린다. 접히면 열 정렬이 사라져 훑을 수가 없다. */
+.tablewrap{overflow-x:auto}
+.ttable{min-width:1150px}
+.thead,.trow{
+  display:grid; align-items:center; gap:10px;
+  grid-template-columns:76px minmax(158px,1.25fr) 124px 100px 114px 118px minmax(128px,1.25fr) minmax(112px,1fr) 24px;
+  padding:7px 12px;
+}
+.thead{
+  border-bottom:1px solid var(--line); background:var(--surface-2);
+  font-family:var(--mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--faint);
+}
+.trow{border-bottom:1px solid var(--line-soft)}
+.trow:last-child{border-bottom:none}
+.trow.s2{background:var(--surface-2)}
+.trow.s2 .ttitle{color:var(--faint); text-decoration:line-through}
+.trow.pinned{background:var(--accent-soft)}
+.ttitle{font-size:13.5px; font-weight:500}
+/*
+ * 브랜드 칩 — 켜고 끄는 자리. 색은 확장 진행판의 브랜드색과 같은 값이라 두 보드에서
+ * 무무키는 늘 남색, 페스룸은 늘 청록이다. 상태색(초록·주황·빨강)과 겹치지 않는 계열만 쓴다.
+ */
+.bchips{display:flex; gap:4px; min-width:0}
+.bchip{
+  flex:0 0 auto; padding:3px 8px; border-radius:99px; cursor:pointer;
+  border:1px dashed var(--line); background:transparent; color:var(--faint);
+  font-family:var(--sans); font-size:11px; line-height:1.4; white-space:nowrap;
+}
+.bchip:hover:not(:disabled){border-style:solid; border-color:var(--bc,var(--accent)); color:var(--bc,var(--accent))}
+.bchip:focus-visible{outline:2px solid var(--bc,var(--accent)); outline-offset:1px}
+.bchip.on{
+  border-style:solid; border-color:var(--bc-line); background:var(--bc-soft);
+  color:var(--bc); font-weight:600;
+}
+.bchip:disabled{cursor:default}
+.bchip[data-b="mumuki"]{--bc:#3B4CA8; --bc-soft:#EDEFFA; --bc-line:#C9CFEE}
+.bchip[data-b="pethroom"]{--bc:#0E7C86; --bc-soft:#E3F2F3; --bc-line:#B6DBDE}
+.bchip[data-b="d2c"]{--bc:#8E3D9E; --bc-soft:#F5E9F7; --bc-line:#E0C3E6}
+@media (prefers-color-scheme: dark){
+  .bchip[data-b="mumuki"]{--bc:#95A2F2; --bc-soft:#1E2340; --bc-line:#333C6B}
+  .bchip[data-b="pethroom"]{--bc:#5FC2CB; --bc-soft:#122C2E; --bc-line:#1F4A4E}
+  .bchip[data-b="d2c"]{--bc:#D394E0; --bc-soft:#2B1B2E; --bc-line:#4A2E50}
+}
+/* 링크 칸: 고치는 자리(입력)와 여는 자리(화살표)를 나눠 둔다. */
+.urlcell{display:flex; align-items:center; gap:2px; min-width:0}
+.turl{font-family:var(--mono); font-size:11.5px; color:var(--ink-2)}
+.urlcell .go{
+  flex:0 0 auto; width:22px; height:22px; border-radius:5px;
+  display:flex; align-items:center; justify-content:center;
+  color:var(--accent); text-decoration:none; font-size:13px; line-height:1;
+}
+.urlcell .go:hover{background:var(--accent-soft)}
+.urlcell .go:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+.norow{margin:0; padding:22px 14px; color:var(--faint); font-size:12.5px; text-align:center}
+
+/* ---------- 보기 전용 ---------- */
+.ro .chip,.ro .bchip,.ro .x,.ro .addcard{pointer-events:none; opacity:.55}
+.ro .field:hover{background:transparent}
+
+footer{
+  margin-top:40px; padding-top:16px; border-top:1px solid var(--line);
+  color:var(--faint); font-size:12px; display:flex; gap:16px; flex-wrap:wrap; justify-content:space-between;
+}
+footer code{font-family:var(--mono); font-size:11px; color:var(--muted)}
+
+/* ---------- 설정 안내 ---------- */
+.setup{max-width:640px; margin:0 auto; padding:56px 20px}
+.setup h1{font-size:20px; margin-bottom:10px}
+.setup p{color:var(--muted); font-size:13px}
+.setup pre{
+  background:var(--surface); border:1px solid var(--line); border-radius:8px;
+  padding:14px; overflow-x:auto; font-family:var(--mono); font-size:12px; color:var(--ink-2);
+}
+
+@media (max-width:820px){
+  .wrap{padding:20px 12px 56px}
+  /* 좁아지면 브랜드 이름표를 카드 위로 올린다. 104px 을 떼어 주면 카드가 못 버틴다. */
+  .mrow{grid-template-columns:1fr; gap:8px}
+  .mrowlabel{padding-top:0}
+  /* 프로젝트 줄은 두 단으로 접는다. 표와 달리 열을 세로로 훑을 일이 없다. */
+  .prow{grid-template-columns:76px 1fr 24px; row-gap:8px}
+  .prow .pmain{grid-column:1 / -1; grid-row:2}
+  .prow .bchips{grid-column:1 / -1; grid-row:3}
+  .prow .sel{grid-column:1 / 2; grid-row:4}
+  .prow .dt{grid-column:2 / 3; grid-row:4}
+  .prow .pprog{grid-column:1 / -1; grid-row:5}
+  /* 주간 줄도 같은 방식으로 접는다: 날짜·건수 한 줄, 비고 한 줄, 확인 한 줄. */
+  /* 주간 머리줄도 접는다: 날짜 한 칸, 나머지는 아래로. */
+  .whead{grid-template-columns:1fr 1fr; row-gap:8px}
+  .whead .wwho{grid-column:1 / -1}
+  .whead .wsum{grid-column:1 / -1}
+  .wbody{margin-left:0; padding-left:9px}
+  .wgroup{grid-template-columns:60px minmax(0,1fr) 24px}
+  .witem{grid-template-columns:minmax(0,1fr) 22px}
+  .wgroup.ask .witem{grid-template-columns:minmax(0,1fr) 74px 22px}
+}
+@media (prefers-reduced-motion:reduce){ *{transition:none !important; animation:none !important} }
